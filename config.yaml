@@ -1,7 +1,7 @@
 # TODO: add papers by configuration file
 base_url: "https://arxiv.paperswithcode.com/api/v0/papers/"
-user_name: "jiangranlv"
-repo_name: "robotics-arxiv-daily"
+user_name: "xyz-123321"
+repo_name: "robotics_arXiv_daily"
 show_authors: True
 show_links: True
 show_badge: False
@@ -28,7 +28,7 @@ keywords:
     "VLM":
         filters: ["Vision Language Model", "Vision Language Models", "Vision-Language Model", "Vision-Language Models"]
     "VLA":
-        filters: ["Vision Language Action","Vision-Language-Action"]
+        filters: ["Vision Language Action", "Vision-Language-Action"]
     "Humanoid":
         filters: ["Humanoid Robot", "Humanoid"]
     "Dexterous":
