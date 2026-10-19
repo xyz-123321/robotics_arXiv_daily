@@ -2,9 +2,6 @@ name: Run Update Paper Links Weekly
 
 on:
   workflow_dispatch:
-  schedule:
-    # 08:00 UTC on Monday = 16:00 Asia/Shanghai
-    - cron: "0 8 * * 1"
 
 permissions:
   contents: write
