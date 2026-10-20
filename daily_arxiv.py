@@ -7,7 +7,6 @@ import logging
 import argparse
 import datetime
 import requests
-import subprocess
 
 logging.basicConfig(format='[%(asctime)s %(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -94,6 +93,21 @@ def get_code_link(qword:str) -> str:
     if results["total_count"] > 0:
         code_link = results["items"][0]["html_url"]
     return code_link
+
+
+def extract_code_link(result):
+    """Prefer a repository URL; otherwise keep a project URL from arXiv comments."""
+    comments = result.comment or ""
+    summary = result.summary or ""
+    def urls(text):
+        return [url.rstrip(".,;:)]}") for url in re.findall(r'https?://[^\s<>"\\]+', text)]
+    for url in urls(comments) + urls(summary):
+        if re.match(r"https?://(?:www\.)?github\.com/[^/\s]+/[^/\s]+", url, re.IGNORECASE):
+            return url
+    for url in urls(comments):
+        if not re.match(r"https?://(?:www\.)?(?:arxiv\.org|export\.arxiv\.org|doi\.org)(?:/|$)", url, re.IGNORECASE):
+            return url
+    return None
   
 def get_daily_papers(topic,query="slam", max_results=2):
     """
@@ -135,15 +149,7 @@ def get_daily_papers(topic,query="slam", max_results=2):
             paper_key = paper_id[0:ver_pos]    
         paper_url = arxiv_url + 'abs/' + paper_key
         
-        # 初始化 repo_url 为 None
-        repo_url = None
-        
-        # 直接从 comments 中提取代码链接
-        if comments:
-            # 用正则提取 http/https 链接
-            urls = re.findall(r'(https?://[^\s,;]+)', comments)
-            if urls:
-                repo_url = urls[0]  # 取第一个链接
+        repo_url = extract_code_link(result)
         
         # TODO: not found, two more chances  
         # if not repo_url:
@@ -174,49 +180,46 @@ def get_daily_papers(topic,query="slam", max_results=2):
     data_web = {topic:content_to_web}
     return data,data_web 
 
-def update_paper_links(filename):
-    '''
-    weekly update paper links in json file 
-    '''
-    def parse_arxiv_string(s):
-        parts = s.split("|")
-        date = parts[1].strip()
-        title = parts[2].strip()
-        authors = parts[3].strip()
-        arxiv_id = parts[4].strip()
-        code = parts[5].strip()
-        arxiv_id = re.sub(r'v\d+', '', arxiv_id)
-        return date,title,authors,arxiv_id,code
+def update_paper_links(filename, link_cache=None):
+    """Refresh missing links from current arXiv metadata without replacing known links.
 
-    with open(filename,"r") as f:
-        content = f.read()
-        if not content:
-            m = {}
-        else:
-            m = json.loads(content)
-            
-        json_data = m.copy() 
-
-        for keywords,v in json_data.items():
-            logging.info(f'keywords = {keywords}')
-            for paper_id,contents in v.items():
-                contents = str(contents)
-
-                update_time, paper_title, paper_first_author, paper_url, code_url = parse_arxiv_string(contents)
-
-                contents = "|{}|{}|{}|{}|{}|\n".format(update_time,paper_title,paper_first_author,paper_url,code_url)
-                json_data[keywords][paper_id] = str(contents)
-                logging.info(f'paper_id = {paper_id}, contents = {contents}')
-                
-                valid_link = False if '|null|' in contents else True
-                if valid_link:
-                    continue
-                # 直接从 comments 中提取代码链接（如果有的话）
-                # 这里暂时保持原有的 null 状态，因为 update_paper_links 主要用于更新已有数据
-                # 如果需要从其他地方获取代码链接，可以在这里添加逻辑
-        # dump to json file
-        with open(filename,"w") as f:
-            json.dump(json_data,f)
+    Queries are batched and cached across topics and output files. Network
+    failures propagate to Actions instead of reporting a successful empty run.
+    """
+    if link_cache is None:
+        link_cache = {}
+    with open(filename, encoding="utf-8") as stream:
+        content = stream.read()
+    json_data = json.loads(content) if content.strip() else {}
+    missing_rows = []
+    for papers in json_data.values():
+        for paper_id, row in papers.items():
+            # Split from the right so pipes in paper titles remain intact.
+            columns = str(row).rsplit("|", 2)
+            if len(columns) == 3 and columns[1].strip().lower() == "null":
+                key = re.sub(r"v\d+$", "", paper_id)
+                missing_rows.append((papers, paper_id, key, columns))
+    pending = sorted({key for _, _, key, _ in missing_rows if key not in link_cache})
+    for offset in range(0, len(pending), 100):
+        batch = pending[offset:offset + 100]
+        logging.info("Refreshing arXiv metadata for %d missing code links", len(batch))
+        search = arxiv.Search(id_list=batch, max_results=len(batch))
+        for result in arxiv_client.results(search):
+            key = re.sub(r"v\d+$", "", result.get_short_id())
+            link_cache[key] = extract_code_link(result)
+        for key in batch:
+            link_cache.setdefault(key, None)
+    updated = 0
+    for papers, paper_id, key, columns in missing_rows:
+        link = link_cache.get(key)
+        if link:
+            papers[paper_id] = f"{columns[0]}|**[link]({link})**|{columns[2]}"
+            updated += 1
+    if updated:
+        with open(filename, "w", encoding="utf-8") as stream:
+            json.dump(json_data, stream)
+    logging.info("Updated %d missing code-link entries in %s", updated, filename)
+    return updated
 
 def update_json_file(filename,data_dict):
     '''
@@ -375,6 +378,7 @@ def demo(**config):
     # TODO: use config
     data_collector = []
     data_collector_web= []
+    link_cache = {}
     
     keywords = config['kv']
     max_results = config['max_results']
@@ -407,7 +411,7 @@ def demo(**config):
         md_file   = config['md_readme_path']
         # update paper links
         if config['update_paper_links']:
-            update_paper_links(json_file)
+            update_paper_links(json_file, link_cache)
         else:    
             # update json data
             update_json_file(json_file,data_collector)
@@ -421,7 +425,7 @@ def demo(**config):
         md_file   = config['md_gitpage_path']
         # TODO: duplicated update paper links!!!
         if config['update_paper_links']:
-            update_paper_links(json_file)
+            update_paper_links(json_file, link_cache)
         else:    
             update_json_file(json_file,data_collector)
         json_to_md(json_file, md_file, task ='Update GitPage', \
@@ -434,7 +438,7 @@ def demo(**config):
         md_file   = config['md_wechat_path']
         # TODO: duplicated update paper links!!!
         if config['update_paper_links']:
-            update_paper_links(json_file)
+            update_paper_links(json_file, link_cache)
         else:    
             update_json_file(json_file, data_collector_web)
         json_to_md(json_file, md_file, task ='Update Wechat', \
@@ -451,12 +455,4 @@ if __name__ == "__main__":
     config = {**config, 'update_paper_links':args.update_paper_links}
     demo(**config)
 
-    try:
-        subprocess.run(["git", "add", "."], check=True)
-        subprocess.run(["git", "commit", "-m", "commit"], check=True)
-        subprocess.run(["git", "push", "-u", "origin", "main"], check=True)
-        print("Git commands executed successfully.")
-    except subprocess.CalledProcessError as e:
-        pass
-
-    
+    # Git commits and pushes are managed by the workflow after all outputs succeed.

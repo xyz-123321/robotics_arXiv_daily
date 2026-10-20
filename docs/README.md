@@ -18,6 +18,19 @@ This codebase is composed of the following parts:
 
 ## Usage
 
+### Automatic updates
+
+Both workflows run automatically on the default branch and retain their **Run workflow** button:
+
+- **Run Arxiv Papers Daily**: every day at **08:17 Asia/Shanghai** (`17 0 * * *` UTC).
+- **Run Update Paper Links Weekly**: every Sunday at **08:47 Asia/Shanghai** (`47 0 * * 0` UTC).
+
+GitHub may delay scheduled runs during periods of high load. The workflows share a concurrency group so they do not write generated files at the same time. Each run validates the update logic, regenerates the configured output files and commits changes back to the same branch using `GITHUB_TOKEN`; no agent API key is needed.
+
+The weekly task now rechecks arXiv comments and abstracts for papers whose Code column is `null`. It prefers explicit GitHub repository links, otherwise uses a project URL from the paper comments, and preserves existing links. Metadata lookups are batched and reused across topics and output files. Links can only be found when the authors expose them in arXiv metadata; this does not clone or update the linked code repositories.
+
+After forking, enable GitHub Actions once if GitHub shows a disabled-workflow prompt. Keep these schedules on the default branch for automatic runs.
+
 <details>
   <summary>Table of Contents</summary>
 
@@ -57,3 +70,4 @@ This codebase is composed of the following parts:
 - [ ] Language translation ([`ChatGPT`](https://chat.openai.com/chat))
 - [ ] Usefull comments
 - [ ] ...
+
