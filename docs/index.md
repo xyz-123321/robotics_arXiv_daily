@@ -2,7 +2,7 @@
 layout: default
 ---
 
-## Updated on 2026.10.22
+## Updated on 2026.10.23
 > Usage instructions: [here](./docs/README.md#usage)
 
 ## Manipulation
@@ -11921,6 +11921,9 @@ layout: default
 
 | Publish Date | Title | Authors | PDF | Code |
 |:---------|:-----------------------|:---------|:------|:------|
+|**2026-10-22**|**LocoManiLab: A Unified Testbed for Data, Policies, Controllers, and Deployment in Humanoid Loco-Manipulation**|Xuelong Li Team|[2610.30876](http://arxiv.org/abs/2610.30876)|null|
+|**2026-10-21**|**Motion Retargeting with Spatiotemporal Preferences for Humanoid Loco-Manipulation**|Guang Chen Team|[2610.30540](http://arxiv.org/abs/2610.30540)|null|
+|**2026-10-21**|**MPBRS: Multi-Potential-Based Reward Shaping for Unified Reward Configuration in Humanoid Locomotion**|Hung Manh La Team|[2610.30334](http://arxiv.org/abs/2610.30334)|null|
 |**2026-10-21**|**SP-HLM: Sparse-Pose-Driven Motion Generation and Whole-Body Control for Humanoid Loco-Manipulation**|Yao Mu Team|[2610.30044](http://arxiv.org/abs/2610.30044)|null|
 |**2026-10-21**|**PHD-Hand: A Printable Humanoid Dexterous Hand with Linkage-Driven 3-DOA Digits**|Cong Wang Team|[2610.29030](http://arxiv.org/abs/2610.29030)|**[link](https://lnkd.in/p/er-NRfMn)**|
 |**2026-10-20**|**Fast Motion Retargeting Pipeline for Scalable Humanoid Robot Learning**|Donghyun Kim Team|[2610.28470](http://arxiv.org/abs/2610.28470)|null|
@@ -12654,6 +12657,9 @@ layout: default
 
 | Publish Date | Title | Authors | PDF | Code |
 |:---------|:-----------------------|:---------|:------|:------|
+|**2026-10-22**|**PiHand: Latent Hand-Object Interaction Priors for Physics-Based Policy Learning**|Gerard Pons-Moll Team|[2610.31299](http://arxiv.org/abs/2610.31299)|**[link](https://virtualhumans.mpi-inf.mpg.de/PiHand/)**|
+|**2026-10-22**|**DeXplicit: Making Physical State Explicit in Dexterous Manipulation World Models**|Ziwei Liu Team|[2610.30781](http://arxiv.org/abs/2610.30781)|**[link](https://dexplicit.github.io)**|
+|**2026-10-21**|**Tactile-Based Robotic Manipulation: From Mechanics-Driven to Data-Driven Perspectives**|Wenzhen Yuan Team|[2610.30438](http://arxiv.org/abs/2610.30438)|**[link](https://www.annualreviews.org)**|
 |**2026-10-21**|**PHD-Hand: A Printable Humanoid Dexterous Hand with Linkage-Driven 3-DOA Digits**|Cong Wang Team|[2610.29030](http://arxiv.org/abs/2610.29030)|**[link](https://lnkd.in/p/er-NRfMn)**|
 |**2026-10-20**|**COWBOY: A Scalable Sim-to-Real Framework for Learning Contextual Whole-Body Manipulation**|Ruslan Salakhutdinov Team|[2610.28948](http://arxiv.org/abs/2610.28948)|**[link](https://cowboy-manip.com)**|
 |**2026-10-20**|**T-WLA: Bridging Slow Vision and Fast Touch**|Paul Pu Liang Team|[2610.28814](http://arxiv.org/abs/2610.28814)|null|
@@ -12670,7 +12676,7 @@ layout: default
 |**2026-10-17**|**Gen2Dex: Learning Dexterous Manipulation from Simulation-Initialized Generated Video Demonstrations**|Chuang Gan Team|[2610.24392](http://arxiv.org/abs/2610.24392)|null|
 |**2026-10-16**|**No Eyes, No Problem: What Does Touch Contribute to Blind Baoding Ball Manipulation?**|Sethu Vijayakumar Team|[2610.23438](http://arxiv.org/abs/2610.23438)|null|
 |**2026-10-19**|**Has GPT-6-Astra Achieved Embodied Intelligence?**|Jing Zuo Team|[2610.22471](http://arxiv.org/abs/2610.22471)|**[link](https://sensenova.ai/has-gpt-6-astra-achieved-embodied-intelligence)**|
-|**2026-10-15**|**Perceive, Predict, and Plan: a Unified World Action Model for Egocentric Dexterous Manipulation**|Jie Song Team|[2610.22363](http://arxiv.org/abs/2610.22363)|null|
+|**2026-10-22**|**Perceive, Predict, and Plan: a Unified World Action Model for Egocentric Dexterous Manipulation**|Jie Song Team|[2610.22363](http://arxiv.org/abs/2610.22363)|null|
 |**2026-10-15**|**Spark-0: Scaling Spatially Aligned Tactile Pretraining for Robot Dexterous Manipulation**|Wenbo Ding Team|[2610.22342](http://arxiv.org/abs/2610.22342)|**[link](https://xsparkai.com/Spark-0)**|
 |**2026-10-15**|**Dexterity from Supervised Play**|Ruoshi Liu Team|[2610.22340](http://arxiv.org/abs/2610.22340)|null|
 |**2026-10-15**|**Whole-Body Dexterity**|Manikantan Nambi Team|[2610.22184](http://arxiv.org/abs/2610.22184)|null|
