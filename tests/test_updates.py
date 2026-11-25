@@ -79,10 +79,12 @@ class UpdateTests(unittest.TestCase):
             self.assertIn("workflow_dispatch", workflow["on"])
             self.assertEqual(workflow["on"]["schedule"][0]["cron"], cron)
             self.assertEqual(workflow["permissions"]["contents"], "write")
+            self.assertEqual(workflow["permissions"]["pages"], "write")
             self.assertEqual(workflow["concurrency"]["cancel-in-progress"], "false")
             groups.append(workflow["concurrency"]["group"])
             commands = [step.get("run", "") for step in workflow["jobs"]["build"]["steps"]]
             self.assertIn("python -m unittest discover -s tests -v", commands)
+            self.assertIn('gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"', commands)
         self.assertEqual(groups[0], groups[1])
 
 

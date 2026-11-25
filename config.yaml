@@ -1,11 +1,18 @@
-# TODO: add papers by configuration file
-base_url: "https://arxiv.paperswithcode.com/api/v0/papers/"
+# These are custom research topics, not official arXiv subject categories.
 user_name: "xyz-123321"
 repo_name: "robotics_arXiv_daily"
 show_authors: True
 show_links: True
 show_badge: False
-max_results: 20
+# Fetch the whole date window; fail visibly if this safety limit is exceeded.
+max_results: 2000
+lookback_days: 14
+bootstrap_days: 30
+# Cross-listed AI/CV/LG/MA papers must mention robotics or embodiment.
+search_scope: >-
+    (cat:cs.RO OR ((cat:cs.AI OR cat:cs.CV OR cat:cs.LG OR cat:cs.MA)
+    AND (ti:robot OR abs:robot OR ti:robotic OR abs:robotic
+    OR ti:robotics OR abs:robotics OR ti:embodied OR abs:embodied)))
 
 publish_readme: True
 publish_gitpage: True
@@ -15,21 +22,54 @@ publish_wechat: False
 json_readme_path: './docs/cv-arxiv-daily.json'
 json_gitpage_path: './docs/cv-arxiv-daily-web.json'
 json_wechat_path: './docs/cv-arxiv-daily-wechat.json'
+json_metadata_path: './docs/paper-metadata.json'
+status_path: './docs/update-status.json'
 
 md_readme_path: 'README.md'
 md_gitpage_path: './docs/index.md'
 md_wechat_path: './docs/wechat.md'
 
-# keywords to search
+# A paper can match multiple research topics and task tags. Keys are stable
+# identifiers/URL anchors; labels can change without breaking old bookmarks.
 keywords:
-    # --------- My Keywords ---------
-    "Manipulation":
-        filters: ["Robot Manipulation", "Robotic Manipulation", "Robot Learning", "Imitation Learning"]
-    "VLM":
-        filters: ["Vision Language Model", "Vision Language Models", "Vision-Language Model", "Vision-Language Models"]
+    "Agentic Robotics":
+        group: "Research topics"
+        description: "具身 Agent：规划、代码控制、工具与技能调用、记忆和闭环纠错。"
+        filters: ["agentic", "robot-use", "robot use agent", "embodied agent", "robot agent", "robotic agent", "agent as policy", "code as policy", "code as policies", "code to control", "skill orchestration", "skill composition", "closed-loop reasoning", "robot harness", "robotic harness"]
     "VLA":
-        filters: ["Vision Language Action", "Vision-Language-Action"]
+        group: "Research topics"
+        label: "VLA and Robot Policies"
+        description: "视觉语言动作模型与通用机器人策略，包括 Diffusion / Flow Policy。"
+        filters: ["Vision Language Action", "Vision-Language-Action", "VLA", "robot foundation model", "generalist robot", "diffusion policy", "flow matching policy"]
+    "World Models":
+        group: "Research topics"
+        label: "World Models and Planning"
+        description: "世界模型、动作条件预测、潜空间动力学和模型辅助规划。"
+        filters: ["world model", "world models", "world action model", "world-action model", "latent dynamics", "video prediction", "action-conditioned prediction", "model-based planning"]
+    "Robot RL":
+        group: "Research topics"
+        label: "Robot RL and Adaptation"
+        description: "机器人强化学习、后训练、在线适应、自我改进与策略蒸馏。"
+        filters: ["reinforcement learning", "post-training", "online adaptation", "test-time adaptation", "self-improvement", "self-improving", "policy distillation"]
+    "VLM":
+        group: "Research topics"
+        label: "Embodied Perception and Reasoning"
+        description: "面向机器人的 VLM、空间推理、可供性与视觉指令落地。"
+        filters: ["Vision Language Model", "Vision-Language Model", "VLM", "spatial reasoning", "affordance", "visual grounding", "3D grounding", "embodied perception"]
+    "Data and Evaluation":
+        group: "Research topics"
+        label: "Data, Simulation and Evaluation"
+        description: "机器人数据集、人类视频、遥操作、合成数据、仿真和评测基准。"
+        filters: ["dataset", "data collection", "teleoperation", "egocentric", "human video", "synthetic data", "robot simulation", "robot simulator", "benchmark", "real-to-sim"]
+    "Manipulation":
+        group: "Task and embodiment tags"
+        description: "机械臂操作、抓取和长时序操作任务；可与上方研究方向交叉归类。"
+        filters: ["Robot Manipulation", "Robotic Manipulation", "Robot Learning", "Imitation Learning", "robot grasping"]
     "Humanoid":
+        group: "Task and embodiment tags"
+        description: "人形机器人、全身控制与移动操作。"
         filters: ["Humanoid Robot", "Humanoid"]
     "Dexterous":
+        group: "Task and embodiment tags"
+        description: "灵巧手、接触密集操作与触觉辅助控制。"
         filters: ["Dexterous Manipulation", "Dexterous hand", "Dexterity", "Dexterous"]

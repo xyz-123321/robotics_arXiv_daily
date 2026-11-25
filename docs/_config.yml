@@ -1,10 +1,10 @@
 title: Robotics Arxiv Daily
-description: Automatically Update Robotics Papers Daily using Github Actions (Update Every 8th hours)
+description: Daily robotics papers — Agentic Robotics, VLA, world models, robot RL, perception, data and evaluation.
 show_downloads: true
 
 github:
-  zip_url: https://github.com/Vincentqyw/cv-arxiv-daily
-  another_url: https://github.com/Vincentqyw/cv-arxiv-daily
+  zip_url: https://github.com/xyz-123321/robotics_arXiv_daily
+  another_url: https://github.com/xyz-123321/robotics_arXiv_daily
 
 ## add remote theme
 remote_theme: jekyll/minima@v2.5.1
@@ -12,8 +12,7 @@ remote_theme: jekyll/minima@v2.5.1
 # minima:
 skin: dark
 social_links:
-  twitter: AlphaRealcat
-  github: vincentqyw
+  github: xyz-123321
 
 plugins:
  - jekyll-remote-theme # add this line to the plugins list if you already have one

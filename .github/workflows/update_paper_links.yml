@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 concurrency:
   group: robotics-arxiv-update
@@ -62,4 +63,10 @@ jobs:
           git commit -m "Update robotics paper links"
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push origin "HEAD:$GITHUB_REF_NAME"
+
+      - name: Request GitHub Pages build
+        if: github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
 

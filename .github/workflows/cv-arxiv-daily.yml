@@ -5,9 +5,18 @@ on:
     # Every day at 08:17 China Standard Time (UTC+8).
     - cron: "17 0 * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - config.yaml
+      - daily_arxiv.py
+      - requirements.txt
+      - tests/**
+      - .github/workflows/cv-arxiv-daily.yml
 
 permissions:
   contents: write
+  pages: write
 
 concurrency:
   group: robotics-arxiv-update
@@ -52,6 +61,8 @@ jobs:
           git add -- README.md \
             docs/cv-arxiv-daily.json \
             docs/cv-arxiv-daily-web.json \
+            docs/paper-metadata.json \
+            docs/update-status.json \
             docs/index.md \
             docs/cv-arxiv-daily-wechat.json \
             docs/wechat.md
@@ -62,4 +73,11 @@ jobs:
           git commit -m "Update robotics arXiv papers"
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push origin "HEAD:$GITHUB_REF_NAME"
+
+      # GITHUB_TOKEN commits do not automatically trigger branch-based Pages.
+      - name: Request GitHub Pages build
+        if: github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
 

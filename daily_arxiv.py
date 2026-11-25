@@ -7,6 +7,9 @@ import logging
 import argparse
 import datetime
 import requests
+import html
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 logging.basicConfig(format='[%(asctime)s %(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -14,7 +17,7 @@ logging.basicConfig(format='[%(asctime)s %(levelname)s] %(message)s',
 
 base_url = "https://arxiv.paperswithcode.com/api/v0/papers/"
 github_url = "https://api.github.com/search/repositories"
-arxiv_url = "http://arxiv.org/"
+arxiv_url = "https://arxiv.org/"
 
 # Shared arxiv client. A generous delay and many retries make the job robust
 # against arxiv's HTTP 429 rate limiting (which is aggressive for CI runners).
@@ -25,35 +28,72 @@ arxiv_client = arxiv.Client(
 )
 
 def load_config(config_file:str) -> dict:
-    '''
-    config_file: input config file path
-    return: a dict of configuration
-    '''
-    # make filters pretty
-    def pretty_filters(**config) -> dict:
-        keywords = dict()
-        EXCAPE = '\"'
-        QUOTA = '' # NO-USE
-        OR = 'OR' # TODO
-        def parse_filters(filters:list):
-            ret = ''
-            for idx in range(0,len(filters)):
-                filter = filters[idx]
-                if len(filter.split()) > 1:
-                    ret += (EXCAPE + filter + EXCAPE)  
-                else:
-                    ret += (QUOTA + filter + QUOTA)   
-                if idx != len(filters) - 1:
-                    ret += OR
-            return ret
-        for k,v in config['keywords'].items():
-            keywords[k] = parse_filters(v['filters'])
-        return keywords
-    with open(config_file,'r') as f:
-        config = yaml.load(f,Loader=yaml.FullLoader) 
-        config['kv'] = pretty_filters(**config)
-        logging.info(f'config = {config}')
+    with open(config_file, encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    config['kv'] = {
+        topic: build_query(definition['filters'], config.get('search_scope', ''))
+        for topic, definition in config['keywords'].items()
+    }
+    for name in ('lookback_days', 'bootstrap_days', 'max_results'):
+        if name in config and (not isinstance(config[name], int) or config[name] < 1):
+            raise ValueError(f'{name} must be a positive integer')
     return config 
+
+
+def build_query(filters, scope=''):
+    """Search phrases in titles/abstracts, with explicit Boolean boundaries."""
+    if not filters:
+        raise ValueError('Every topic needs at least one search phrase')
+    terms = []
+    for term in filters:
+        if not isinstance(term, str) or not term.strip() or '"' in term:
+            raise ValueError(f'Invalid search phrase: {term!r}')
+        terms.append(f'(ti:"{term.strip()}" OR abs:"{term.strip()}")')
+    query = '(' + ' OR '.join(terms) + ')'
+    return f'({scope}) AND {query}' if scope else query
+
+
+def read_json(filename):
+    path = Path(filename)
+    if not path.exists():
+        return {}
+    content = path.read_text(encoding='utf-8')
+    return json.loads(content) if content.strip() else {}
+
+
+def write_json(filename, data):
+    """Replace one complete JSON file atomically."""
+    path = Path(filename)
+    temporary = path.with_name(path.name + '.tmp')
+    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    os.replace(temporary, path)
+
+
+def topic_slug(topic):
+    return re.sub(r'[^a-z0-9-]', '', topic.lower().replace(' ', '-'))
+
+
+def matching_terms(result, filters):
+    """Verify phrases locally: arXiv stemming can conflate agentic and agent."""
+    text = ' '.join(re.findall(r'\w+', f'{result.title} {result.summary}'.casefold()))
+    matches = []
+    for term in filters:
+        phrase = ' '.join(re.findall(r'\w+', term.casefold()))
+        if phrase and re.search(r'(?<!\w)' + re.escape(phrase) + r's?(?!\w)', text):
+            matches.append(term)
+    return matches
+
+
+def window_start(config, status, now, new_topic=False):
+    days = config.get('lookback_days', 14)
+    if new_topic:
+        days = max(days, config.get('bootstrap_days', 30))
+    start = now.date() - datetime.timedelta(days=days)
+    # Catch up after missed scheduled runs, while retaining an indexing overlap.
+    if status.get('last_successful_fetch'):
+        previous = datetime.datetime.fromisoformat(status['last_successful_fetch'])
+        start = min(start, previous.date() - datetime.timedelta(days=1))
+    return start
 
 def get_authors(authors, first_author = False, last_author = False):
     output = str()
@@ -109,7 +149,8 @@ def extract_code_link(result):
             return url
     return None
   
-def get_daily_papers(topic,query="slam", max_results=2):
+def get_daily_papers(topic,query="slam", max_results=2, start_date=None,
+                     end_date=None, metadata=None, filters=None):
     """
     @param topic: str
     @param query: str
@@ -118,16 +159,26 @@ def get_daily_papers(topic,query="slam", max_results=2):
     # output 
     content = dict() 
     content_to_web = dict()
+    if start_date is not None:
+        end_date = end_date or datetime.datetime.now(datetime.timezone.utc).date()
+        query = (f'({query}) AND submittedDate:'
+                 f'[{start_date:%Y%m%d}0000 TO {end_date:%Y%m%d}2359]')
     search_engine = arxiv.Search(
         query = query,
-        max_results = max_results,
+        # One extra result detects truncation rather than silently losing papers.
+        max_results = max_results + 1,
         sort_by = arxiv.SortCriterion.SubmittedDate
     )
 
-    for result in arxiv_client.results(search_engine):
+    for index, result in enumerate(arxiv_client.results(search_engine)):
+        if index >= max_results:
+            raise RuntimeError(f"'{topic}' exceeded max_results={max_results}; increase the limit or narrow the date window")
+        matched = matching_terms(result, filters) if filters is not None else []
+        if filters is not None and not matched:
+            continue
 
         paper_id            = result.get_short_id()
-        paper_title         = result.title
+        paper_title         = html.escape(result.title).replace('|', '&#124;').replace('\n', ' ')
         paper_url           = result.entry_id
         code_url            = base_url + paper_id #TODO
         paper_abstract      = result.summary.replace("\n"," ")
@@ -139,7 +190,7 @@ def get_daily_papers(topic,query="slam", max_results=2):
         update_time         = result.updated.date()
         comments            = result.comment
 
-        logging.info(f"Time = {update_time} title = {paper_title} author = {paper_first_author}")
+        logging.debug(f"Time = {update_time} title = {paper_title} author = {paper_first_author}")
 
         # eg: 2108.09112v1 -> 2108.09112
         ver_pos = paper_id.find('v')
@@ -150,6 +201,23 @@ def get_daily_papers(topic,query="slam", max_results=2):
         paper_url = arxiv_url + 'abs/' + paper_key
         
         repo_url = extract_code_link(result)
+        if metadata is not None:
+            previous = metadata.get(paper_key, {})
+            tags = list(dict.fromkeys(previous.get('topics', []) + [topic]))
+            evidence = {**previous.get('matched_terms', {}), topic: matched}
+            repo_url = repo_url or previous.get('code_url')
+            metadata[paper_key] = {
+                'title': result.title,
+                'abstract': paper_abstract,
+                'authors': [str(author) for author in result.authors],
+                'published': result.published.isoformat(),
+                'updated': result.updated.isoformat(),
+                'categories': result.categories,
+                'url': paper_url,
+                'code_url': repo_url or previous.get('code_url'),
+                'topics': tags,
+                'matched_terms': evidence,
+            }
         
         # TODO: not found, two more chances  
         # if not repo_url:
@@ -160,14 +228,14 @@ def get_daily_papers(topic,query="slam", max_results=2):
         # 根据是否有代码链接来生成 content
         if repo_url is not None:
             content[paper_key] = "|**{}**|**{}**|{} Team|[{}]({})|**[link]({})**|\n".format(
-                   update_time,paper_title,paper_last_author,paper_key,paper_url,repo_url)
+                   publish_time,paper_title,paper_last_author,paper_key,paper_url,repo_url)
             content_to_web[paper_key] = "- {}, **{}**, {} Team, Paper: [{}]({}), Code: **[{}]({})**".format(
-                   update_time,paper_title,paper_last_author,paper_url,paper_url,repo_url,repo_url)
+                   publish_time,paper_title,paper_last_author,paper_url,paper_url,repo_url,repo_url)
         else:
             content[paper_key] = "|**{}**|**{}**|{} Team|[{}]({})|null|\n".format(
-                   update_time,paper_title,paper_last_author,paper_key,paper_url)
+                   publish_time,paper_title,paper_last_author,paper_key,paper_url)
             content_to_web[paper_key] = "- {}, **{}**, {} Team, Paper: [{}]({})".format(
-                   update_time,paper_title,paper_last_author,paper_url,paper_url)
+                   publish_time,paper_title,paper_last_author,paper_url,paper_url)
 
         # TODO: select useful comments
         comments = None
@@ -225,14 +293,7 @@ def update_json_file(filename,data_dict):
     '''
     daily update json file using data_dict
     '''
-    with open(filename,"r") as f:
-        content = f.read()
-        if not content:
-            m = {}
-        else:
-            m = json.loads(content)
-            
-    json_data = m.copy() 
+    json_data = read_json(filename)
     
     # update papers in each keywords         
     for data in data_dict:
@@ -240,12 +301,17 @@ def update_json_file(filename,data_dict):
             papers = data[keyword]
 
             if keyword in json_data.keys():
+                # A temporary absence of a code URL must not erase a known link.
+                for paper_id, new_row in papers.items():
+                    old_row = json_data[keyword].get(paper_id, '')
+                    old_columns = old_row.rsplit('|', 2)
+                    if new_row.endswith('|null|\n') and len(old_columns) == 3 and '[link]' in old_columns[1]:
+                        papers[paper_id] = new_row[:-7] + '|' + old_columns[1] + '|\n'
                 json_data[keyword].update(papers)
             else:
                 json_data[keyword] = papers
 
-    with open(filename,"w") as f:
-        json.dump(json_data,f)
+    write_json(filename, json_data)
     
 def json_to_md(filename,md_filename,
                task = '',
@@ -253,7 +319,9 @@ def json_to_md(filename,md_filename,
                use_title = True, 
                use_tc = True,
                show_badge = True,
-               use_b2t = True):
+               use_b2t = True,
+               topics = None,
+               fetch_status = None):
     """
     @param filename: str
     @param md_filename: str
@@ -266,14 +334,18 @@ def json_to_md(filename,md_filename,
             return s
         math_start,math_end = match.span()
         space_trail = space_leading = ''
-        if s[:math_start][-1] != ' ' and '*' != s[:math_start][-1]: space_trail = ' ' 
-        if s[math_end:][0] != ' ' and '*' != s[math_end:][0]: space_leading = ' ' 
+        if math_start and s[math_start - 1] not in ' *': space_trail = ' '
+        if math_end < len(s) and s[math_end] not in ' *': space_leading = ' '
         ret += s[:math_start] 
         ret += f'{space_trail}${match.group()[1:-1].strip()}${space_leading}' 
         ret += s[math_end:]
         return ret
   
-    DateNow = datetime.date.today()
+    topics = topics or {}
+    fetch_status = fetch_status or {}
+    timestamp = fetch_status.get('last_successful_fetch')
+    fetched = datetime.datetime.fromisoformat(timestamp) if timestamp else datetime.datetime.now(datetime.timezone.utc)
+    DateNow = fetched.astimezone(ZoneInfo('Asia/Shanghai')).date()
     DateNow = str(DateNow)
     DateNow = DateNow.replace('-','.')
     
@@ -283,6 +355,13 @@ def json_to_md(filename,md_filename,
             data = {}
         else:
             data = json.loads(content)
+
+    ordered_topics = list(topics) + [key for key in data if key not in topics]
+    groups = {}
+    for keyword in ordered_topics:
+        if keyword in topics or data.get(keyword):
+            group = topics.get(keyword, {}).get('group', 'Other topics')
+            groups.setdefault(group, []).append(keyword)
 
     # clean README.md if daily already exist else create it
     with open(md_filename,"w+") as f:
@@ -307,29 +386,35 @@ def json_to_md(filename,md_filename,
         else:
             f.write("> Updated on " + DateNow + "\n")
 
-        # TODO: add usage
-        f.write("> Usage instructions: [here](./docs/README.md#usage)\n\n")
+        usage_url = './README.html#usage' if to_web else './docs/README.md#usage'
+        f.write(f"> Usage instructions: [here]({usage_url})\n\n")
+        if topics:
+            f.write('研究方向与任务标签可交叉归类；以下是本站自定义专题，非 arXiv 官方学科分类。\n\n')
+            f.write('历史记录保留；新抓取按机器人相关范围筛选。标签基于标题和摘要关键词，供进一步阅读筛选。\n\n')
+        if timestamp:
+            f.write(f"最近成功抓取：{fetched.astimezone(ZoneInfo('Asia/Shanghai')):%Y-%m-%d %H:%M}（北京时间）。\n\n")
 
         #Add: table of contents
         if use_tc == True:
-            f.write("<details>\n")
-            f.write("  <summary>Table of Contents</summary>\n")
-            f.write("  <ol>\n")
-            for keyword in data.keys():
-                day_content = data[keyword]
-                if not day_content:
-                    continue
-                kw = keyword.replace(' ','-')      
-                f.write(f"    <li><a href=#{kw.lower()}>{keyword}</a></li>\n")
-            f.write("  </ol>\n")
-            f.write("</details>\n\n")
+            for group, members in groups.items():
+                f.write(f'**{group}**\n\n')
+                for keyword in members:
+                    label = topics.get(keyword, {}).get('label', keyword)
+                    count = len(data.get(keyword, {}))
+                    f.write(f'- [{label}](#{topic_slug(keyword)}) ({count})\n')
+                f.write('\n')
         
-        for keyword in data.keys():
-            day_content = data[keyword]
-            if not day_content:
-                continue
+        for keyword in ordered_topics:
+            day_content = data.get(keyword, {})
+            definition = topics.get(keyword, {})
             # the head of each part
-            f.write(f"## {keyword}\n\n")
+            label = html.escape(definition.get('label', keyword))
+            f.write(f'<h2 id="{topic_slug(keyword)}">{label}</h2>\n\n')
+            if definition.get('description'):
+                f.write(definition['description'] + '\n\n')
+            if not day_content:
+                f.write('当前抓取范围内暂无匹配论文。\n\n')
+                continue
 
             if use_title == True :
                 if to_web == False:
@@ -379,6 +464,11 @@ def demo(**config):
     data_collector = []
     data_collector_web= []
     link_cache = {}
+    status = read_json(config['status_path']) if config.get('status_path') else {}
+    metadata = read_json(config['json_metadata_path']) if config.get('json_metadata_path') else {}
+    archive = read_json(config['json_readme_path'])
+    now = datetime.datetime.now(datetime.timezone.utc)
+    topic_status = {}
     
     keywords = config['kv']
     max_results = config['max_results']
@@ -389,21 +479,23 @@ def demo(**config):
 
     b_update = config['update_paper_links']
     logging.info(f'Update Paper Link = {b_update}')
-    if config['update_paper_links'] == False:
+    if not config['update_paper_links'] and not config.get('render_only'):
         logging.info(f"GET daily papers begin")
         for topic, keyword in keywords.items():
             logging.info(f"Keyword: {topic}")
-            try:
-                data, data_web = get_daily_papers(topic, query = keyword,
-                                                max_results = max_results)
-                data_collector.append(data)
-                data_collector_web.append(data_web)
-            except Exception as e:
-                # Don't let a transient arxiv failure (e.g. HTTP 429 rate limit)
-                # abort the whole run; skip this keyword and keep going.
-                logging.error(f"Failed to fetch papers for '{topic}': {e}")
-            print("\n")
+            start = window_start(config, status, now, new_topic=topic not in archive)
+            # Do not write ANY output unless every topic was fetched completely.
+            data, data_web = get_daily_papers(
+                topic, query=keyword, max_results=max_results,
+                start_date=start, end_date=now.date(), metadata=metadata,
+                filters=config['keywords'].get(topic, {}).get('filters'),
+            )
+            data_collector.append(data)
+            data_collector_web.append(data_web)
+            topic_status[topic] = {'fetched': len(data[topic]), 'since': start.isoformat()}
+            logging.info('Fetched %d papers for %s since %s', len(data[topic]), topic, start)
         logging.info(f"GET daily papers end")
+        status = {'last_successful_fetch': now.isoformat(), 'topics': topic_status}
 
     # 1. update README.md file
     if publish_readme:
@@ -412,12 +504,12 @@ def demo(**config):
         # update paper links
         if config['update_paper_links']:
             update_paper_links(json_file, link_cache)
-        else:    
+        elif not config.get('render_only'):
             # update json data
             update_json_file(json_file,data_collector)
         # json data to markdown
         json_to_md(json_file,md_file, task ='Update Readme', \
-            show_badge = show_badge)
+            show_badge = show_badge, topics=config['keywords'], fetch_status=status)
 
     # 2. update docs/index.md file (to gitpage)
     if publish_gitpage:
@@ -426,11 +518,11 @@ def demo(**config):
         # TODO: duplicated update paper links!!!
         if config['update_paper_links']:
             update_paper_links(json_file, link_cache)
-        else:    
+        elif not config.get('render_only'):
             update_json_file(json_file,data_collector)
         json_to_md(json_file, md_file, task ='Update GitPage', \
             to_web = True, show_badge = show_badge, \
-            use_tc=False, use_b2t=False)
+            use_tc=True, use_b2t=False, topics=config['keywords'], fetch_status=status)
 
     # 3. Update docs/wechat.md file
     if publish_wechat:
@@ -439,20 +531,33 @@ def demo(**config):
         # TODO: duplicated update paper links!!!
         if config['update_paper_links']:
             update_paper_links(json_file, link_cache)
-        else:    
+        elif not config.get('render_only'):
             update_json_file(json_file, data_collector_web)
         json_to_md(json_file, md_file, task ='Update Wechat', \
-            to_web=False, use_title= False, show_badge = show_badge) 
+            to_web=False, use_title= False, show_badge = show_badge,
+            topics=config['keywords'], fetch_status=status)
+
+    if topic_status:
+        if config.get('json_metadata_path'):
+            write_json(config['json_metadata_path'], metadata)
+        if config.get('status_path'):
+            write_json(config['status_path'], status)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_path',type=str, default='config.yaml',
                             help='configuration file path')
     parser.add_argument('--update_paper_links', default=False,
-                        action="store_true",help='whether to update paper links etc.')                        
+                        action="store_true",help='whether to update paper links etc.')
+    parser.add_argument('--lookback_days', type=int, help='override the rolling fetch window for a backfill')
+    parser.add_argument('--render_only', action='store_true', help='render existing archives without network requests')
     args = parser.parse_args()
     config = load_config(args.config_path)
-    config = {**config, 'update_paper_links':args.update_paper_links}
+    config = {**config, 'update_paper_links':args.update_paper_links, 'render_only':args.render_only}
+    if args.lookback_days is not None:
+        if args.lookback_days < 1:
+            parser.error('--lookback_days must be a positive integer')
+        config['lookback_days'] = args.lookback_days
     demo(**config)
 
     # Git commits and pushes are managed by the workflow after all outputs succeed.
