@@ -1,0 +1,41 @@
+{
+  "last_successful_fetch": "2026-11-25T08:59:30.233213+00:00",
+  "topics": {
+    "Agentic Robotics": {
+      "fetched": 163,
+      "since": "2026-10-26"
+    },
+    "VLA": {
+      "fetched": 186,
+      "since": "2026-11-11"
+    },
+    "World Models": {
+      "fetched": 310,
+      "since": "2026-10-26"
+    },
+    "Robot RL": {
+      "fetched": 325,
+      "since": "2026-10-26"
+    },
+    "VLM": {
+      "fetched": 107,
+      "since": "2026-11-11"
+    },
+    "Data and Evaluation": {
+      "fetched": 848,
+      "since": "2026-10-26"
+    },
+    "Manipulation": {
+      "fetched": 167,
+      "since": "2026-11-11"
+    },
+    "Humanoid": {
+      "fetched": 68,
+      "since": "2026-11-11"
+    },
+    "Dexterous": {
+      "fetched": 42,
+      "since": "2026-11-11"
+    }
+  }
+}
