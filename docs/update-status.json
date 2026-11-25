@@ -1,29 +1,21 @@
 {
-  "last_successful_fetch": "2026-11-25T08:59:30.233213+00:00",
+  "last_successful_fetch": "2026-11-25T09:11:36.223350+00:00",
   "topics": {
     "Agentic Robotics": {
-      "fetched": 163,
-      "since": "2026-10-26"
+      "fetched": 81,
+      "since": "2026-11-11"
     },
     "VLA": {
       "fetched": 186,
       "since": "2026-11-11"
     },
-    "World Models": {
-      "fetched": 310,
-      "since": "2026-10-26"
-    },
     "Robot RL": {
-      "fetched": 325,
-      "since": "2026-10-26"
+      "fetched": 158,
+      "since": "2026-11-11"
     },
     "VLM": {
       "fetched": 107,
       "since": "2026-11-11"
-    },
-    "Data and Evaluation": {
-      "fetched": 848,
-      "since": "2026-10-26"
     },
     "Manipulation": {
       "fetched": 167,
