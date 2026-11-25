@@ -41,11 +41,6 @@ keywords:
         label: "VLA and Robot Policies"
         description: "视觉语言动作模型与通用机器人策略，包括 Diffusion / Flow Policy。"
         filters: ["Vision Language Action", "Vision-Language-Action", "VLA", "robot foundation model", "generalist robot", "diffusion policy", "flow matching policy"]
-    "World Models":
-        group: "Research topics"
-        label: "World Models and Planning"
-        description: "世界模型、动作条件预测、潜空间动力学和模型辅助规划。"
-        filters: ["world model", "world models", "world action model", "world-action model", "latent dynamics", "video prediction", "action-conditioned prediction", "model-based planning"]
     "Robot RL":
         group: "Research topics"
         label: "Robot RL and Adaptation"
@@ -56,11 +51,6 @@ keywords:
         label: "Embodied Perception and Reasoning"
         description: "面向机器人的 VLM、空间推理、可供性与视觉指令落地。"
         filters: ["Vision Language Model", "Vision-Language Model", "VLM", "spatial reasoning", "affordance", "visual grounding", "3D grounding", "embodied perception"]
-    "Data and Evaluation":
-        group: "Research topics"
-        label: "Data, Simulation and Evaluation"
-        description: "机器人数据集、人类视频、遥操作、合成数据、仿真和评测基准。"
-        filters: ["dataset", "data collection", "teleoperation", "egocentric", "human video", "synthetic data", "robot simulation", "robot simulator", "benchmark", "real-to-sim"]
     "Manipulation":
         group: "Task and embodiment tags"
         description: "机械臂操作、抓取和长时序操作任务；可与上方研究方向交叉归类。"

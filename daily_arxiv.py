@@ -341,6 +341,7 @@ def json_to_md(filename,md_filename,
         ret += s[math_end:]
         return ret
   
+    configured_topics = topics is not None
     topics = topics or {}
     fetch_status = fetch_status or {}
     timestamp = fetch_status.get('last_successful_fetch')
@@ -356,7 +357,8 @@ def json_to_md(filename,md_filename,
         else:
             data = json.loads(content)
 
-    ordered_topics = list(topics) + [key for key in data if key not in topics]
+    # Explicit configuration controls visibility; retired topics stay archived.
+    ordered_topics = list(topics) if configured_topics else list(data)
     groups = {}
     for keyword in ordered_topics:
         if keyword in topics or data.get(keyword):

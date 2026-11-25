@@ -35,6 +35,9 @@ class TopicTests(unittest.TestCase):
         self.assertIn('cat:cs.RO', config['kv']['VLM'])
         self.assertIn('abs:robot', config['kv']['VLM'])
         self.assertNotIn('cat:Agentic', config['kv']['Agentic Robotics'])
+        for retired in ('World Models', 'Data and Evaluation'):
+            self.assertNotIn(retired, config['keywords'])
+            self.assertNotIn(retired, config['kv'])
 
     def test_fetches_more_than_twenty_and_uses_first_submission_dates(self):
         metadata = {}
@@ -86,7 +89,12 @@ class TopicTests(unittest.TestCase):
     def test_render_orders_topics_preserves_anchors_and_uses_success_timestamp(self):
         with tempfile.TemporaryDirectory() as directory:
             source, target = Path(directory) / 'papers.json', Path(directory) / 'index.md'
-            source.write_text(json.dumps({'VLA': {'2611.00001': '|row|\n'}, 'Legacy': {'1': '|old|\n'}}))
+            source.write_text(json.dumps({
+                'VLA': {'2611.00001': '|row|\n'},
+                'World Models': {'1': '|world model archive|\n'},
+                'Data and Evaluation': {'2': '|evaluation archive|\n'},
+            }))
+            archived = source.read_bytes()
             daily_arxiv.json_to_md(
                 source, target, to_web=True, show_badge=False,
                 topics={
@@ -98,11 +106,25 @@ class TopicTests(unittest.TestCase):
             rendered = target.read_text()
             self.assertLess(rendered.index('id="agentic-robotics"'), rendered.index('id="vla"'))
             self.assertIn('[VLA and Robot Policies](#vla)', rendered)
-            self.assertIn('id="legacy"', rendered)
+            for retired in ('world-models', 'data-and-evaluation'):
+                self.assertNotIn(f'id="{retired}"', rendered)
+                self.assertNotIn(f'#{retired}', rendered)
+            self.assertNotIn('Other topics', rendered)
+            self.assertEqual(source.read_bytes(), archived)
             self.assertIn('暂无匹配论文', rendered)
             self.assertIn('Updated on 2026.11.25', rendered)
             self.assertIn('2026-11-25 02:00', rendered)
             self.assertIn('./README.html#usage', rendered)
+
+    def test_render_without_config_shows_archive_but_empty_config_hides_all_topics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source, target = Path(directory) / 'papers.json', Path(directory) / 'index.md'
+            source.write_text(json.dumps({'Legacy': {'1': '|old|\n'}}))
+            daily_arxiv.json_to_md(source, target, show_badge=False)
+            self.assertIn('id="legacy"', target.read_text())
+            daily_arxiv.json_to_md(source, target, show_badge=False, topics={})
+            self.assertNotIn('id="legacy"', target.read_text())
+            self.assertNotIn('#legacy', target.read_text())
 
     def test_new_fetch_preserves_history_and_known_code_links(self):
         old_row = '|**2026-11-10**|**Old title**|Team|[1](https://arxiv.org/abs/1)|**[link](https://github.com/a/b)**|\n'

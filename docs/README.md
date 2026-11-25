@@ -10,10 +10,8 @@
 | --- | --- |
 | Agentic Robotics | 任务规划、代码控制、工具与技能调用、记忆、闭环反馈和错误恢复 |
 | VLA and Robot Policies | 视觉语言动作模型、通用机器人策略、Diffusion / Flow Policy |
-| World Models and Planning | 世界模型、动作条件预测、潜空间动力学与模型辅助规划 |
 | Robot RL and Adaptation | 强化学习、后训练、在线适应、自我改进与蒸馏 |
 | Embodied Perception and Reasoning | 面向机器人的 VLM、空间推理、可供性与视觉指令落地 |
-| Data, Simulation and Evaluation | 数据集、遥操作、人类视频、合成数据、仿真与评测基准 |
 
 Manipulation、Humanoid、Dexterous 保留为任务／形态标签。原有 `#vla`、`#vlm`、`#manipulation`、`#humanoid`、`#dexterous` 链接继续有效。
 
@@ -59,7 +57,7 @@ python daily_arxiv.py --update_paper_links
 
 ### Configuration and files
 
-- `config.yaml`：`keywords` 的键是稳定专题 ID；`label` 控制显示名称，`group` 控制目录分组，`description` 解释收录范围，`filters` 设置检索词。Agentic Robotics 放在首位。
+- `config.yaml`：`keywords` 的键是稳定专题 ID；`label` 控制显示名称，`group` 控制目录分组，`description` 解释收录范围，`filters` 设置检索词。Agentic Robotics 放在首位。仅抓取和展示配置中的专题；移除专题后保留其历史 JSON 归档，但不再显示栏目或为该专题检索新论文。
 - `daily_arxiv.py`：检索、归档和 Markdown 渲染。
 - `docs/cv-arxiv-daily.json`、`docs/cv-arxiv-daily-web.json`：保留原来的按专题归档格式，兼容历史记录。
 - `docs/paper-metadata.json`：以 arXiv ID 为键保存新抓取论文的标题、摘要、作者、提交／修订时间、官方学科分类、链接、多个本站专题标签和实际匹配词。
