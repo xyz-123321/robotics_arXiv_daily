@@ -2,14 +2,14 @@
 layout: default
 ---
 
-## Updated on 2026.11.26
+## Updated on 2026.11.27
 > Usage instructions: [here](./README.html#usage)
 
 研究方向与任务标签可交叉归类；以下是本站自定义专题，非 arXiv 官方学科分类。
 
 历史记录保留；新抓取按机器人相关范围筛选。标签基于标题和摘要关键词，供进一步阅读筛选。
 
-最近成功抓取：2026-11-26 16:11（北京时间）。
+最近成功抓取：2026-11-27 16:22（北京时间）。
 
 **Research topics**
 

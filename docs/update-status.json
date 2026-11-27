@@ -1,33 +1,33 @@
 {
-  "last_successful_fetch": "2026-11-26T08:11:04.860686+00:00",
+  "last_successful_fetch": "2026-11-27T08:22:27.367206+00:00",
   "topics": {
     "Agentic Robotics": {
-      "fetched": 87,
-      "since": "2026-11-12"
+      "fetched": 79,
+      "since": "2026-11-13"
     },
     "VLA": {
-      "fetched": 208,
-      "since": "2026-11-12"
+      "fetched": 202,
+      "since": "2026-11-13"
     },
     "Robot RL": {
-      "fetched": 170,
-      "since": "2026-11-12"
+      "fetched": 165,
+      "since": "2026-11-13"
     },
     "VLM": {
-      "fetched": 116,
-      "since": "2026-11-12"
+      "fetched": 113,
+      "since": "2026-11-13"
     },
     "Manipulation": {
-      "fetched": 176,
-      "since": "2026-11-12"
+      "fetched": 169,
+      "since": "2026-11-13"
     },
     "Humanoid": {
-      "fetched": 68,
-      "since": "2026-11-12"
+      "fetched": 63,
+      "since": "2026-11-13"
     },
     "Dexterous": {
-      "fetched": 44,
-      "since": "2026-11-12"
+      "fetched": 42,
+      "since": "2026-11-13"
     }
   }
 }
